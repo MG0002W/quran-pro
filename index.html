@@ -99,12 +99,12 @@
 
         async function loadWelcome() {
             const sId = Math.floor(Math.random() * 114) + 1;
-            const res = await fetch(`/static/data/${sId}.json`);
+            const res = await fetch(`static/data/${sId}.json`);
             const data = await res.json();
             const idx = Math.floor(Math.random() * data.data[0].ayahs.length);
             
             updateSplashUI(data.data[0].englishName, data.data[0].ayahs[idx], data.data[1].ayahs[idx]);
-            currentAudio = new Audio(`/static/audio/${sId}/${data.data[0].ayahs[idx].numberInSurah}.mp3`);
+            currentAudio = new Audio(`static/audio/${sId}/${data.data[0].ayahs[idx].numberInSurah}.mp3`);
         }
 
         function stopAllSound() {
@@ -133,7 +133,7 @@
         async function renderFlowStep() {
             if (!isFlowActive) return;
             try {
-                const res = await fetch(`/static/data/${flowSurahId}.json`);
+                const res = await fetch(`static/data/${flowSurahId}.json`);
                 const data = await res.json();
                 
                 if (flowAyahIdx >= data.data[0].ayahs.length) {
@@ -145,7 +145,7 @@
                 updateSplashUI(data.data[0].englishName, data.data[0].ayahs[flowAyahIdx], data.data[1].ayahs[flowAyahIdx]);
                 
                 if (currentAudio) { currentAudio.pause(); }
-                currentAudio = new Audio(`/static/audio/${flowSurahId}/${data.data[0].ayahs[flowAyahIdx].numberInSurah}.mp3`);
+                currentAudio = new Audio(`static/audio/${flowSurahId}/${data.data[0].ayahs[flowAyahIdx].numberInSurah}.mp3`);
                 currentAudio.play();
                 currentAudio.onended = () => {
                     flowAyahIdx++;
@@ -172,7 +172,7 @@
         }
 
         async function loadList() {
-            const res = await fetch('/static/data/surahs.json');
+            const res = await fetch('static/data/surahs.json');
             const data = await res.json();
             const grid = document.getElementById('surah-grid');
             data.data.forEach(s => {
@@ -194,7 +194,7 @@
             const modal = document.getElementById('modal');
             modal.style.display = 'block';
             document.body.style.overflow = 'hidden';
-            const res = await fetch(`/static/data/${id}.json`);
+            const res = await fetch(`static/data/${id}.json`);
             const data = await res.json();
             let html = `<h2 style="text-align:center; color:var(--accent); margin-bottom:30px;">${data.data[0].englishName}</h2>`;
             data.data[0].ayahs.forEach((a, i) => {
@@ -202,7 +202,7 @@
                 <div style="padding:25px 0; border-bottom:1px solid #222; position:relative;">
                     <div class="splash-arabic" style="font-size:1.8rem; text-align:right">${a.text}</div>
                     <p style="color:var(--text-secondary); line-height:1.6; margin-top:15px;">${data.data[1].ayahs[i].text}</p>
-                    <button class="card-play-btn" style="position:static; margin-top:15px;" onclick="playSingleTrack('/static/audio/${id}/${i+1}.mp3')">
+                    <button class="card-play-btn" style="position:static; margin-top:15px;" onclick="playSingleTrack('static/audio/${id}/${i+1}.mp3')">
                         ${playIcon}
                     </button>
                 </div>`;
@@ -217,7 +217,7 @@
             stopAllSound();
 
             // Воспроизведение Бисмиллях
-            let bismillah = new Audio('/static/audio/bismillah.mp3');
+            let bismillah = new Audio('static/audio/bismillah.mp3');
             bismillah.play().catch(e => console.log("Файл bismillah.mp3 не найден"));
 
             document.getElementById('splash-screen').style.opacity = '0';
