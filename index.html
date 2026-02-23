@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quran Premium | Final Build</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0b0e14;
+            --card: #161b22;
+            --accent: #d4af37;
+            --text: #f0f6fc;
+            --text-secondary: #8b949e;
+        }
+
+        body, html { margin: 0; padding: 0; background-color: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow-x: hidden; }
+
+        /* ЭКРАН ПОТОКА / ПРИВЕТСТВИЯ */
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, #1c2128 0%, #0b0e14 100%);
+            z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; padding: 20px; transition: opacity 0.5s; visibility: visible;
+        }
+
+        .fade-content { opacity: 0; transform: translateY(20px); transition: 0.6s ease; }
+        .fade-in { opacity: 1 !important; transform: translateY(0) !important; }
+
+        .splash-arabic { font-family: 'Amiri', serif; font-size: 2.8rem; color: var(--accent); margin: 20px 0; direction: rtl; line-height: 1.6; }
+        .splash-ru { font-size: 1.2rem; color: #ccc; max-width: 800px; line-height: 1.5; }
+        .ayah-info { color: var(--accent); letter-spacing: 3px; font-size: 0.8rem; text-transform: uppercase; font-weight: 600; margin-bottom: 10px; }
+
+        .btn-action {
+            margin-top: 40px; padding: 12px 35px; background: transparent; border: 1px solid var(--accent);
+            color: var(--accent); border-radius: 30px; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; transition: 0.3s;
+        }
+        .btn-action:hover { background: var(--accent); color: #000; }
+
+        /* МЕНЮ */
+        #main-app { opacity: 0; transition: 0.8s; padding: 40px 20px; max-width: 1200px; margin: 0 auto; }
+        .surah-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .surah-card {
+            background: var(--card); padding: 25px; border-radius: 15px; border: 1px solid #30363d;
+            cursor: pointer; transition: 0.3s; position: relative;
+        }
+        .surah-card:hover { border-color: var(--accent); transform: translateY(-5px); }
+
+        .card-play-btn {
+            position: absolute; bottom: 20px; right: 20px;
+            background: var(--accent); border: none; border-radius: 50%;
+            width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .card-play-btn svg { width: 14px; fill: #000; }
+
+        /* МОДАЛКА */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 999; overflow-y: auto; backdrop-filter: blur(10px); }
+        .modal-content { max-width: 850px; margin: 40px auto; background: #0d1117; padding: 30px; border-radius: 20px; border: 1px solid #30363d; position: relative; }
+    </style>
+</head>
+<body onclick="unlockAudio()">
+
+    <div id="splash-screen">
+        <div id="splash-container" class="fade-content">
+            <div class="ayah-info" id="sp-info">Загрузка...</div>
+            <div class="splash-arabic" id="sp-arabic"></div>
+            <p id="sp-ru" class="splash-ru"></p>
+            <button class="btn-action" onclick="exitToLibrary(event)">В библиотеку</button>
+        </div>
+    </div>
+
+    <div id="main-app">
+        <h1 style="text-align:center; color:var(--accent); letter-spacing:5px; margin-bottom: 40px;">AL QURAN PRO</h1>
+        <div id="surah-grid" class="surah-grid"></div>
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span style="float:right; cursor:pointer; color:var(--accent); font-size:2rem" onclick="closeModal()">✕</span>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentAudio = null;
+        let isFlowActive = false;
+        let flowSurahId = 1;
+        let flowAyahIdx = 0;
+
+        const playIcon = `<svg viewBox="0 0 448 512"><path d="M424.4 214.7L72.4 6.6C43.8-10.3 0 6.1 0 41.2v429.6c0 35.1 43.8 51.5 72.4 34.6l352-208.1c25.5-15.1 25.5-52.8 0-67.9z"/></svg>`;
+
+        window.onload = () => { loadWelcome(); loadList(); };
+
+        function unlockAudio() { 
+            if (currentAudio && currentAudio.paused && currentAudio.src !== "" && !isFlowActive) {
+                currentAudio.play().catch(() => {});
+            }
+        }
+
+        async function loadWelcome() {
+            const sId = Math.floor(Math.random() * 114) + 1;
+            const res = await fetch(`/static/data/${sId}.json`);
+            const data = await res.json();
+            const idx = Math.floor(Math.random() * data.data[0].ayahs.length);
+            
+            updateSplashUI(data.data[0].englishName, data.data[0].ayahs[idx], data.data[1].ayahs[idx]);
+            currentAudio = new Audio(`/static/audio/${sId}/${data.data[0].ayahs[idx].numberInSurah}.mp3`);
+        }
+
+        function stopAllSound() {
+            isFlowActive = false;
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.onended = null;
+                currentAudio.src = ""; 
+                currentAudio.load();
+            }
+        }
+
+        async function startFlow(sId, aIdx) {
+            stopAllSound();
+            isFlowActive = true;
+            flowSurahId = sId;
+            flowAyahIdx = aIdx;
+            
+            document.getElementById('splash-screen').style.visibility = 'visible';
+            document.getElementById('splash-screen').style.opacity = '1';
+            document.getElementById('modal').style.display = 'none';
+
+            renderFlowStep();
+        }
+
+        async function renderFlowStep() {
+            if (!isFlowActive) return;
+            try {
+                const res = await fetch(`/static/data/${flowSurahId}.json`);
+                const data = await res.json();
+                
+                if (flowAyahIdx >= data.data[0].ayahs.length) {
+                    flowSurahId++; flowAyahIdx = 0;
+                    if (flowSurahId > 114) { exitToLibrary(); return; }
+                    renderFlowStep(); return;
+                }
+
+                updateSplashUI(data.data[0].englishName, data.data[0].ayahs[flowAyahIdx], data.data[1].ayahs[flowAyahIdx]);
+                
+                if (currentAudio) { currentAudio.pause(); }
+                currentAudio = new Audio(`/static/audio/${flowSurahId}/${data.data[0].ayahs[flowAyahIdx].numberInSurah}.mp3`);
+                currentAudio.play();
+                currentAudio.onended = () => {
+                    flowAyahIdx++;
+                    renderFlowStep();
+                };
+            } catch (e) { exitToLibrary(); }
+        }
+
+        function playSingleTrack(url) {
+            stopAllSound();
+            currentAudio = new Audio(url);
+            currentAudio.play().catch(() => {});
+        }
+
+        function updateSplashUI(name, ar, ru) {
+            const cont = document.getElementById('splash-container');
+            cont.classList.remove('fade-in');
+            setTimeout(() => {
+                document.getElementById('sp-info').innerText = `Сура: ${name} | Аят: ${ar.numberInSurah}`;
+                document.getElementById('sp-arabic').innerText = ar.text;
+                document.getElementById('sp-ru').innerText = ru.text;
+                cont.classList.add('fade-in');
+            }, 100);
+        }
+
+        async function loadList() {
+            const res = await fetch('/static/data/surahs.json');
+            const data = await res.json();
+            const grid = document.getElementById('surah-grid');
+            data.data.forEach(s => {
+                const card = document.createElement('div');
+                card.className = 'surah-card';
+                card.innerHTML = `
+                    <h3>${s.number}. ${s.englishName}</h3>
+                    <div style="color:var(--text-secondary); margin-top:5px;">${s.name}</div>
+                    <button class="card-play-btn" onclick="event.stopPropagation(); startFlow(${s.number}, 0)">
+                        ${playIcon}
+                    </button>
+                `;
+                card.onclick = () => openModal(s.number);
+                grid.appendChild(card);
+            });
+        }
+
+        async function openModal(id) {
+            const modal = document.getElementById('modal');
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+            const res = await fetch(`/static/data/${id}.json`);
+            const data = await res.json();
+            let html = `<h2 style="text-align:center; color:var(--accent); margin-bottom:30px;">${data.data[0].englishName}</h2>`;
+            data.data[0].ayahs.forEach((a, i) => {
+                html += `
+                <div style="padding:25px 0; border-bottom:1px solid #222; position:relative;">
+                    <div class="splash-arabic" style="font-size:1.8rem; text-align:right">${a.text}</div>
+                    <p style="color:var(--text-secondary); line-height:1.6; margin-top:15px;">${data.data[1].ayahs[i].text}</p>
+                    <button class="card-play-btn" style="position:static; margin-top:15px;" onclick="playSingleTrack('/static/audio/${id}/${i+1}.mp3')">
+                        ${playIcon}
+                    </button>
+                </div>`;
+            });
+            document.getElementById('modal-body').innerHTML = html;
+        }
+
+        // ВЫХОД СО ЗВУКОМ БИСМИЛЛЯХ
+        function exitToLibrary(event) {
+            if (event) event.stopPropagation();
+            
+            stopAllSound();
+
+            // Воспроизведение Бисмиллях
+            let bismillah = new Audio('/static/audio/bismillah.mp3');
+            bismillah.play().catch(e => console.log("Файл bismillah.mp3 не найден"));
+
+            document.getElementById('splash-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('splash-screen').style.visibility = 'hidden';
+                document.getElementById('main-app').style.opacity = '1';
+                document.body.style.overflow = 'auto';
+            }, 500);
+        }
+
+        function closeModal() { 
+            stopAllSound();
+            document.getElementById('modal').style.display = 'none'; 
+            document.body.style.overflow = 'auto';
+        }
+    </script>
+</body>
+</html>
